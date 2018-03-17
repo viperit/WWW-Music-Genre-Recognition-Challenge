@@ -9,7 +9,7 @@ https://www.crowdai.org/challenges/www-2018-challenge-learning-to-recognize-musi
 数据太大无法上传，请自行在比赛链接中查找  
 save存放训练出的参数  
 
-GPU：P100，CPU：6核，20分钟1000step。  
+GPU：P100，CPU：6核，大约20分钟1000step，训练速率以及其他设置请参看代码  
 一般训练到21000步为最好，训练到dev有67%，train有90+，反而在榜上表现较好  
 
 CNN-Run：主调用过程，如果save中有模型，会自动读取restore模型，继续训练    
