@@ -7,6 +7,7 @@ import glob
 import librosa
 import scipy
 import tensorflow as tf
+import shutil
 
 
 def slice_test(array , threshold = 30):
@@ -18,15 +19,19 @@ def slice_test(array , threshold = 30):
 
 def creatDir():
     ###创建必要的文件夹
-    if not os.path.exists('./train-image'):
-        os.makedirs('./train-image') 
-    if not os.path.exists('./test-image'):
-        os.makedirs('./test-image') 
+    if os.path.exists('./train-image'):
+        shutil.rmtree('./train-image')
+    os.makedirs('./train-image') 
+    if os.path.exists('./test-image'):
+        shutil.rmtree('./test-image')
+    os.makedirs('./test-image') 
         
-    if not os.path.exists('./train-split-image'):
-        os.makedirs('./train-split-image') 
-    if not os.path.exists('./test-split-image'):
-        os.makedirs('./test-split-image') 
+    if os.path.exists('./train-split-image'):
+        shutil.rmtree('./train-split-image')
+    os.makedirs('./train-split-image') 
+    if os.path.exists('./test-split-image'):
+        shutil.rmtree('./test-split-image')
+    os.makedirs('./test-split-image') 
     ###
 
 def mp3_to_image():
@@ -162,6 +167,7 @@ def creatTF():
             continue
         image_name_list_test.append(row)
 
+    
     writer = tf.python_io.TFRecordWriter("dev.tfrecords")
     for row in image_name_list_test:
         img = Image.open('./train-split-image/'+row[0]+'.jpg')
@@ -225,4 +231,5 @@ def main():
     
 if __name__ == "__main__":
     main()
+
 

@@ -31,8 +31,15 @@ def initialization():#读取data文件夹获取train数据，并确认有多少�
     global TOTAL_IMAGE_NUM_FINAL_TEST
     global BATCH_SIZE_FINAL_TEST
     global BATCH_COUNT_FINAL_TEST
-    f = open('./information.txt')
+    f = open('./test_splited_num.txt')
     TOTAL_IMAGE_NUM_FINAL_TEST = int(f.read())
+    f.close()
+
+    if os.path.exists('./prediction-split-softmax.csv'):
+        os.remove('./prediction-split-softmax.csv')
+ 
+    if os.path.exists('./submit.csv'):
+        os.remove('./submit.csv)
     
     if (TOTAL_IMAGE_NUM_FINAL_TEST % BATCH_SIZE_FINAL_TEST) == 0:#得到final test set的batch个数
         BATCH_COUNT_FINAL_TEST = int(TOTAL_IMAGE_NUM_FINAL_TEST / BATCH_SIZE_FINAL_TEST) 

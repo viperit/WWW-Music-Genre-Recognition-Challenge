@@ -44,8 +44,10 @@ def initialization():#读取data文件夹获取train数据，并确认有多少�
 
     f = open('train_splited_num.txt')
     TOTAL_IMAGE_NUM_TRAIN = int(f.read())
+    f.close()
     f = open('dev_splited_num.txt')
     TOTAL_IMAGE_NUM_DEV = int(f.read())
+    f.close()
     
     
     if (TOTAL_IMAGE_NUM_TRAIN % BATCH_SIZE_TRAIN) == 0:#得到训练集的batch个数
