@@ -33,6 +33,20 @@ def creatDir():
         shutil.rmtree('./test-split-image')
     os.makedirs('./test-split-image') 
     ###
+    
+def convert(read_path,save_path,music):
+    print("Reading Music from :", read_path)
+    y, sr = librosa.load(read_path, sr=None, mono=True)
+    try:
+        mel = librosa.feature.melspectrogram(y=y, sr=sr,n_fft = 2048,\
+                                                 hop_length=1024,n_mels = 299,fmax=22100)
+        graph = librosa.power_to_db(mel,ref=np.max)
+    except Exception as e:
+        print("Error in : ", read_path)
+        print("Error {0}".format(str(e.args[0])).encode("utf-8"))
+    print("Saving music to :", music)
+    scipy.misc.imsave('./'+save_path+'/{}.jpg'.format(music), graph)
+
 
 def mp3_to_image():
     
@@ -40,41 +54,35 @@ def mp3_to_image():
     dir_cans = []
     for x in os.listdir('./fma_medium/fma_medium/'):
         dir_cans.append(x)
+        
+    p = Pool(multiprocessing.cpu_count())
     dir_cans = dir_cans[1:-2]
     for dir_can in dir_cans:
         musics = []
         for x in os.listdir('./fma_medium/fma_medium/'+dir_can):
             musics.append(x)
+            
         for music in musics:
-            read_path = './fma_medium/fma_medium/' + dir_can +'/'+ music
-            y, sr = librosa.load(read_path, sr=None, mono=True)
-            if y.shape[0] < 1:#检查是不是有错
-                continue
-            mel = librosa.feature.melspectrogram(y=y, sr=sr,n_fft = 2048,\
-                                                 hop_length=1024,n_mels = 299,fmax=22100)
-            graph = librosa.power_to_db(mel,ref=np.max)
-            scipy.misc.imsave('./train-image/{}.jpg'.format(music), graph)
+            music_path = './fma_medium/fma_medium/' + dir_can +'/'+ music
+            file_name = os.path.basename(music_path)
+            p.apply_async(convert, args=(music_path,'train-split-image',file_name,))
+        ###
+    p.close()
+    p.join()
     ####
             
     
-    
-    
     ###得到所有的test music
-    test_ids=[]
-    for x in os.listdir('./crowdai_fma_test/'):
-        if x.find('.mp3') != -1:
-            test_ids.append(x)
+    test_ids = glob.glob(os.path.join(TEST_DIRECTORY, "*.mp3"))
     ###
-
+    p = Pool(multiprocessing.cpu_count())
     ###读取所有的test music，转成图存下来
-    for music in test_ids:
-        read_path = './test-image/{}'.format(music)
-        y, sr = librosa.load(read_path, sr=None, mono=True)
-        mel = librosa.feature.melspectrogram(y=y, sr=sr,n_fft = 2048,\
-                                             hop_length=1024,n_mels = 299,fmax=22100)
-        graph = librosa.power_to_db(mel,ref=np.max)
-        scipy.misc.imsave('./test-image/{}.jpg'.format(music), graph)
+    for music_path in test_ids:
+        file_name = os.path.basename(music_path)
+        p.apply_async(convert, args=(music_path,'test-split-image',file_name,))
     ###
+    p.close()
+    p.join()
 
 def split_save(openpath,savepath):
     image_count = 0#记录有多少image
@@ -138,10 +146,9 @@ def image_split():
     ###
     for name in image_name_list:
         image_count+=split_save('./train-image/',"./train-split-image/")
-    with open('train_splited_num.txt', 'a') as f:
-        f.write(str(image_count))
+    
         
-     ###读取全部的训练图
+    ###读取全部的训练图
     image_count = 0
     image_name_list = []
     for x in os.listdir('./test-image/'):
@@ -156,6 +163,30 @@ def image_split():
 
 def creatTF():
     
+    ###创建train集，其中train-name.csv是提前随机生成的，从全部的train中拔出一部分来作为train
+    i = 0
+    image_name_list = []
+    csv_reader = csv.reader(open('./train-name.csv', encoding='utf-8'))
+    for row in csv_reader:
+        i+=1
+        if i == 1:#第一行不要
+            continue
+        image_name_list.append(row)
+    with open('train_splited_num.txt', 'a') as f:
+        f.write(str(i-1))
+
+    writer = tf.python_io.TFRecordWriter("train.tfrecords")
+     for row in image_name_list:
+        img = Image.open('./train-split-image/'+row[0]+'.jpg')
+        label = int(row[1])
+        img_raw = img.tobytes()   
+        example = tf.train.Example(features=tf.train.Features(feature={
+                "label": tf.train.Feature(int64_list=tf.train.Int64List(value=[label])),
+                'img_raw': tf.train.Feature(bytes_list=tf.train.BytesList(value=[img_raw]))
+            }))
+        writer.write(example.SerializeToString())  #序列化为字符串
+    writer.close()
+    
     
     ###创建dev集，其中dev-name.csv是提前随机生成的，从全部的train中拔出一部分来作为dev
     i = 0
@@ -165,54 +196,39 @@ def creatTF():
         i+=1
         if i == 1:#第一行不要
             continue
-        image_name_list_test.append(row)
+        image_name_list.append(row)
+    with open('dev_splited_num.txt', 'a') as f:
+        f.write(str(i-1))
+        
+        
+    writer = tf.python_io.TFRecordWriter("dev.tfrecords")
+    for row in image_name_list:
+        img = Image.open('./train-split-image/'+row[0]+'.jpg')#所有的训练都在train-split-image中
+        label = int(row[1])
+        img_raw = img.tobytes()   
+        example = tf.train.Example(features=tf.train.Features(feature={
+                "label": tf.train.Feature(int64_list=tf.train.Int64List(value=[label])),
+                'img_raw': tf.train.Feature(bytes_list=tf.train.BytesList(value=[img_raw]))
+            }))
+        writer.write(example.SerializeToString())  #序列化为字符串
+    writer.close()
+
 
     
-    writer = tf.python_io.TFRecordWriter("dev.tfrecords")
-    for row in image_name_list_test:
-        img = Image.open('./train-split-image/'+row[0]+'.jpg')
-        label = int(row[1])
-        img_raw = img.tobytes()   
-        example = tf.train.Example(features=tf.train.Features(feature={
-                "label": tf.train.Feature(int64_list=tf.train.Int64List(value=[label])),
-                'img_raw': tf.train.Feature(bytes_list=tf.train.BytesList(value=[img_raw]))
-            }))
-        writer.write(example.SerializeToString())  #序列化为字符串
-    writer.close()
 
-
-    ###创建dev集，其中train-name.csv是提前随机生成的，从全部的train中拔出一部分来作为train
-    i = 0
-    image_name_list = []
-    csv_reader = csv.reader(open('./train-name.csv', encoding='utf-8'))
-    for row in csv_reader:
-        i+=1
-        if i == 1:#第一行不要
-            continue
-        image_name_list_test.append(row)
-
-    writer = tf.python_io.TFRecordWriter("train.tfrecords")
-
-    for row in image_name_list_test:
-        img = Image.open('./train-split-image/'+row[0]+'.jpg')
-        label = int(row[1])
-        img_raw = img.tobytes()   
-        example = tf.train.Example(features=tf.train.Features(feature={
-                "label": tf.train.Feature(int64_list=tf.train.Int64List(value=[label])),
-                'img_raw': tf.train.Feature(bytes_list=tf.train.BytesList(value=[img_raw]))
-            }))
-        writer.write(example.SerializeToString())  #序列化为字符串
-    writer.close()
+   
     
     
     ###形成test 的 TFrecord  
-    image_name_list_test = []
+    image_name_list = []
     for x in os.listdir("./test-split-image/"):#读取全部的训练数据
         if x != '.DS_Store':
             x = x[0:x.find('.')]
-            image_name_list_test.append(x)
+            image_name_list.append(x)
+            
+            
     writer = tf.python_io.TFRecordWriter("finaltest-relative.tfrecords")
-    for name in image_name_list_test:
+    for name in image_name_list:
         img = Image.open("./test-split-image/"+name+'.jpg')
         img_raw = img.tobytes()   
         name = bytes(name,encoding='utf-8')
@@ -224,12 +240,18 @@ def creatTF():
     writer.close()
     
 def main():
+    print("creatDir")
     creatDir()
+    print("mp3_to_image")
     mp3_to_image()
+    print("image_split")
     image_split()
+    print("creatTF")
     creatTF()
+
     
 if __name__ == "__main__":
     main()
+
 
 
