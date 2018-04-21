@@ -1,11 +1,13 @@
 # WWW-Music-Genre-Recognition-Challenge
 
 这是[WWW-Music-Genre-Recognition-Challenge](https://www.crowdai.org/challenges/www-2018-challenge-learning-to-recognize-musical-genre  )的第七名实现源码：  
-团队成员[@AlgoHunt](https://github.com/AlgoHunt/) [@viperit](https://github.com/viperit/)
+团队成员@AlgoHunt @viperit
+整个模型流程如下图所示
+![pipeline](pipeline.jpeg)
 
 ## Dependencies
 + Python 3; TensorFlow >= 1.3.0
-+ FMA data. 轻按如下结构存放:
++ FMA data. 请按如下结构存放:
 ```
 DIR/
   fma_medium/
